@@ -1,0 +1,3 @@
+Audio recording is deterministic and writes immediately to disk.
+Video recording depends on camera lifecycle and encoder flush.
+Expo Go sandboxes this, so we validate evidence capture in a native dev build.
