@@ -19,6 +19,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { useTheme } from '../context/ThemeContext';
 import { useEmergency } from '../context/EmergencyContext';
 import { ChevronLeft, MapPin, Plus, Trash2, Edit2, Bell, BellOff } from 'lucide-react-native';
+import { lightMapStyle, darkMapStyle } from '../constants/mapStyles';
 import {
     createGeofence,
     updateGeofence,
@@ -249,6 +250,7 @@ export const GeofencingScreen: React.FC<Props> = ({ navigation }) => {
                         showsUserLocation
                         onPress={handleMapPress}
                         userInterfaceStyle={isDark ? 'dark' : 'light'}
+                        customMapStyle={Platform.OS === 'android' ? (isDark ? darkMapStyle : lightMapStyle) : undefined}
                     >
                     {geofences.map((geofence) => (
                         <React.Fragment key={geofence.id}>

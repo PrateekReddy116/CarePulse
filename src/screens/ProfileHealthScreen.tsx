@@ -9,6 +9,7 @@ import { Card } from '../components/Card';
 import { SPACING, FONT_SIZE, BORDER_RADIUS } from '../constants/theme';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { loadProfile, saveProfile, UserProfile, EmergencyContact, initialProfile } from '../services/profileService';
+import { syncUserTableWithProfile } from '../services/userProfileSyncService';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { updateVolunteerStatus } from '../services/volunteerService';
@@ -42,7 +43,10 @@ export const ProfileHealthScreen: React.FC<Props> = ({ navigation }) => {
     const handleSave = async () => {
         setLoading(true);
         try {
+            // Save locally
             await saveProfile(profile);
+            // Sync to Supabase users table (name/phone)
+            await syncUserTableWithProfile(profile);
             Alert.alert('Success', 'Profile saved successfully');
         } catch (error) {
             Alert.alert('Error', 'Failed to save profile');
@@ -198,6 +202,13 @@ export const ProfileHealthScreen: React.FC<Props> = ({ navigation }) => {
                         value={profile.name}
                         onChangeText={(t) => updateField('name', t)}
                         placeholder="John Doe"
+                    />
+                    <Input
+                        label="Phone Number"
+                        value={profile.phone}
+                        onChangeText={(t) => updateField('phone', t)}
+                        placeholder="+91 98765 43210"
+                        keyboardType="phone-pad"
                     />
                     <View style={styles.row}>
                         <Input

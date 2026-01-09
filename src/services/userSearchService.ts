@@ -11,7 +11,7 @@ export interface AppUser {
 
 /**
  * Check if a phone number is registered in the app
- * Uses volunteers table since users table doesn't exist yet
+ * Checks both users and volunteers tables
  */
 export const checkUserRegistered = async (phone: string): Promise<AppUser | null> => {
     try {
@@ -23,12 +23,35 @@ export const checkUserRegistered = async (phone: string): Promise<AppUser | null
         // Normalize phone number (remove spaces, dashes, etc.)
         const normalizedPhone = phone.replace(/\D/g, '');
 
-        // Check volunteers table (which exists)
+        // First, try to check users table (preferred)
+        try {
+            const { data: userData, error: userError } = await supabase
+                .from('users')
+                .select('id, email, name, phone')
+                .eq('phone', normalizedPhone)
+                .maybeSingle();
+
+            if (!userError && userData) {
+                return {
+                    id: userData.id,
+                    email: userData.email || '',
+                    phone: userData.phone || '',
+                    name: userData.name || '',
+                    avatar_url: undefined,
+                    created_at: new Date().toISOString(),
+                };
+            }
+        } catch (usersTableError) {
+            // If users table doesn't exist or query fails, fall back to volunteers
+            console.log('Users table check failed, falling back to volunteers table');
+        }
+
+        // Fallback: Check volunteers table
         const { data: volunteerData, error: volunteerError } = await supabase
             .from('volunteers')
             .select('user_id, name, phone')
             .eq('phone', normalizedPhone)
-            .single();
+            .maybeSingle();
 
         if (!volunteerError && volunteerData) {
             // Found in volunteers table

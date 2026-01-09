@@ -12,6 +12,7 @@ export interface EmergencyContact {
 
 export interface UserProfile {
     name: string;
+    phone: string;
     age: string;
     bloodGroup: string;
     conditions: string;
@@ -24,6 +25,7 @@ export interface UserProfile {
 
 export const initialProfile: UserProfile = {
     name: '',
+    phone: '',
     age: '',
     bloodGroup: '',
     conditions: '',

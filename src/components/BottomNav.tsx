@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Text, Platform } from 'react-native';
 import { Home, Shield, PhoneCall, User2 } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 import { SPACING } from '../constants/theme';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type MainTabKey = 'Home' | 'SafetyTools' | 'Contacts' | 'ProfileHealth';
 
@@ -18,6 +19,12 @@ interface BottomNavProps {
 
 export const BottomNav: React.FC<BottomNavProps> = ({ navigation, active, onTabPress }) => {
     const { theme } = useTheme();
+    const insets = useSafeAreaInsets();
+    
+    // Calculate bottom position: safe area inset + padding
+    // On Android, insets.bottom accounts for navigation bar (gesture or soft keys)
+    // On iOS, insets.bottom accounts for home indicator
+    const bottomInset = insets.bottom + SPACING.m;
 
     const items: { key: MainTabKey; label: string; icon: React.ReactNode }[] = [
         {
@@ -43,7 +50,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ navigation, active, onTabP
     ];
 
     return (
-        <View style={styles.wrapper}>
+        <View style={[styles.wrapper, { bottom: bottomInset }]}>
             <View style={[styles.container, { backgroundColor: theme.surface, shadowColor: theme.shadow }]}>
             {items.map((item) => {
                 const isActive = active === item.key;
@@ -82,7 +89,6 @@ const styles = StyleSheet.create({
         position: 'absolute',
         left: SPACING.l,
         right: SPACING.l,
-        bottom: SPACING.l,
         alignItems: 'center',
         justifyContent: 'center',
     },

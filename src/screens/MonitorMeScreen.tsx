@@ -265,10 +265,10 @@ export const MonitorMeScreen: React.FC<Props> = ({ navigation }) => {
                         </View>
                         <View style={[styles.infoCard, { backgroundColor: theme.surface }]}>
                             <Text style={[styles.infoText, { color: theme.textSecondary }]}>
-                                • Your location is updated every 10 seconds{'\n'}
+                                • Your location is updated every 2 seconds via WebSocket{'\n'}
                                 • Selected contacts can see your real-time location{'\n'}
                                 • You can stop sharing at any time{'\n'}
-                                • Location history is saved for your safety
+                                • Location history is saved locally for your safety
                             </Text>
                         </View>
                     </View>

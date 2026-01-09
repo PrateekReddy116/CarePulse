@@ -26,6 +26,7 @@ import { SOSTimerScreen } from '../screens/SOSTimerScreen';
 import { GeofencingScreen } from '../screens/GeofencingScreen';
 import { SearchUsersScreen } from '../screens/SearchUsersScreen';
 import { CommunitiesScreen } from '../screens/CommunitiesScreen';
+import { LiveLocationViewerScreen } from '../screens/LiveLocationViewerScreen';
 
 export type RootStackParamList = {
     // Auth Stack
@@ -43,6 +44,7 @@ export type RootStackParamList = {
     SearchUsers: undefined;
     Communities: undefined;
     Chat: { contact: { id: string; name: string; phone?: string; avatar?: string; relationship?: string } };
+    LiveLocationViewer: { sessionId: string; volunteerName?: string };
     UserProfile: undefined;
     SOSActivation: undefined;
     VolunteerMatching: undefined;
@@ -64,11 +66,8 @@ const AuthNavigator = () => {
 };
 
 const MainNavigator = () => {
-    const { userProfile } = useEmergency();
-    const initialRoute = userProfile.name ? "MainTabs" : "UserProfile";
-
     return (
-        <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRoute}>
+        <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="MainTabs">
             <Stack.Screen name="MainTabs" component={MainTabsScreen} />
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="SafetyTools" component={SafetyToolsScreen} />
@@ -79,6 +78,7 @@ const MainNavigator = () => {
             <Stack.Screen name="SearchUsers" component={SearchUsersScreen} />
             <Stack.Screen name="Communities" component={CommunitiesScreen} />
             <Stack.Screen name="Chat" component={ChatScreen} />
+            <Stack.Screen name="LiveLocationViewer" component={LiveLocationViewerScreen} />
             <Stack.Screen name="UserProfile" component={UserProfileScreen} />
             <Stack.Screen name="SOSActivation" component={SOSActivationScreen} />
             <Stack.Screen name="VolunteerMatching" component={VolunteerMatchingScreen} />

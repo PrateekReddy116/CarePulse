@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Image, Platform } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeScreen } from '../components/SafeScreen';
@@ -9,6 +9,7 @@ import { useEmergency } from '../context/EmergencyContext';
 import { useTheme } from '../context/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BottomNav } from '../components/BottomNav';
+import { lightMapStyle, darkMapStyle } from '../constants/mapStyles';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -97,6 +98,7 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
                     showsUserLocation
                     followsUserLocation
                     userInterfaceStyle={isDark ? 'dark' : 'light'}
+                    customMapStyle={Platform.OS === 'android' ? (isDark ? darkMapStyle : lightMapStyle) : undefined}
                 >
                     {location && (
                         <Marker

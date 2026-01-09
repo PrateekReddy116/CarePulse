@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeScreen } from '../components/SafeScreen';
 import { Button } from '../components/Button';
@@ -10,6 +10,7 @@ import { useEmergency } from '../context/EmergencyContext';
 import { useTheme } from '../context/ThemeContext';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import { AlertTriangle, CheckCircle, Clock } from 'lucide-react-native';
+import { lightMapStyle, darkMapStyle } from '../constants/mapStyles';
 
 type HelpStatusScreenNavigationProp = StackNavigationProp<RootStackParamList, 'HelpStatus'>;
 
@@ -53,6 +54,7 @@ export const HelpStatusScreen: React.FC<Props> = ({ navigation }) => {
                         longitudeDelta: 0.01,
                     }}
                     userInterfaceStyle={isDark ? 'dark' : 'light'}
+                    customMapStyle={Platform.OS === 'android' ? (isDark ? darkMapStyle : lightMapStyle) : undefined}
                 >
                     {location && (
                         <Marker

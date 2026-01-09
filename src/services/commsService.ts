@@ -62,7 +62,7 @@ export const sendEmergencyMessage = async (
 /**
  * Send in-app notification to a registered user
  */
-const sendInAppNotification = async (
+export const sendInAppNotification = async (
     userId: string,
     title: string,
     body: string
@@ -90,6 +90,41 @@ const sendInAppNotification = async (
     } catch (error) {
         console.error('Error sending in-app notification:', error);
         throw error;
+    }
+};
+
+/**
+ * Send live location notification to a registered app user.
+ * Stores a notification row with type 'live_location' and JSON payload in body.
+ */
+export const sendLiveLocationNotificationToUser = async (
+    userId: string,
+    sessionId: string,
+    volunteerName: string,
+): Promise<void> => {
+    const payload = {
+        sessionId,
+        volunteerName,
+        type: 'live_location',
+    };
+
+    try {
+        const { error } = await supabase
+            .from('notifications')
+            .insert([{
+                user_id: userId,
+                title: `${volunteerName} is sharing live location`,
+                body: JSON.stringify(payload),
+                type: 'live_location',
+                read: false,
+                created_at: new Date().toISOString(),
+            }]);
+
+        if (error) {
+            console.error('Error saving live location notification:', error);
+        }
+    } catch (error) {
+        console.error('Error sending live location notification:', error);
     }
 };
 

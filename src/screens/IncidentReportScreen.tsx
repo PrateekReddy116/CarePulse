@@ -21,6 +21,7 @@ import { analyzeIncidentWithGemini } from '../services/aiService';
 import { sendEmergencySMS, notifyVolunteersOnline, notifyVolunteersOfflineLocalAssignment } from '../services/commsService';
 import { isOnline } from '../services/networkService';
 import { assignVolunteers } from '../services/volunteerService';
+import { speakText } from '../services/ttsService';
 
 type IncidentReportScreenNavigationProp = StackNavigationProp<RootStackParamList, 'IncidentReport'>;
 
@@ -44,9 +45,10 @@ export const IncidentReportScreen: React.FC<Props> = ({ navigation }) => {
     const [isRecording, setIsRecording] = useState(false);
     const [recordingUri, setRecordingUri] = useState<string | null>(null);
     const [recordingDuration, setRecordingDuration] = useState(0);
-    const [processingState, setProcessingState] = useState<'IDLE' | 'TRANSCRIBING' | 'ANALYZING' | 'SENDING'>('IDLE');
+    const [processingState, setProcessingState] = useState<'IDLE' | 'TRANSCRIBING' | 'ANALYZING' | 'SENDING' | 'SPEAKING'>('IDLE');
     const [transcript, setTranscript] = useState<string | null>(null);
     const [aiAnalysis, setAiAnalysis] = useState<{ summary: string, riskLevel: string, reason: string } | null>(null);
+    const [isPlayingTTS, setIsPlayingTTS] = useState(false);
 
     const toggleSymptom = (symptom: string) => {
         if (selectedSymptoms.includes(symptom)) {
@@ -74,7 +76,7 @@ export const IncidentReportScreen: React.FC<Props> = ({ navigation }) => {
                     'Microphone is still in use. Please wait a moment and try again.'
                 );
             } else {
-                Alert.alert('Error', 'Could not start recording.');
+            Alert.alert('Error', 'Could not start recording.');
             }
         }
     };
@@ -274,6 +276,31 @@ NOTE: No internet — audio saved locally.`;
                         <View style={styles.aiHeader}>
                             <MaterialIcons name="auto-awesome" size={20} color={theme.primary} />
                             <Text style={[styles.aiTitle, { color: theme.primary }]}>AI Assessment</Text>
+                            <TouchableOpacity
+                                onPress={async () => {
+                                    if (isPlayingTTS) return;
+                                    try {
+                                        setIsPlayingTTS(true);
+                                        setProcessingState('SPEAKING');
+                                        const fullText = `${aiAnalysis.summary}. Risk Level: ${aiAnalysis.riskLevel}. ${aiAnalysis.reason}`;
+                                        await speakText(fullText);
+                                    } catch (error) {
+                                        console.error('TTS Error:', error);
+                                        Alert.alert('Error', 'Failed to play audio. Please check your internet connection and API key.');
+                                    } finally {
+                                        setIsPlayingTTS(false);
+                                        setProcessingState('IDLE');
+                                    }
+                                }}
+                                style={styles.ttsButton}
+                                disabled={isPlayingTTS || processingState === 'SPEAKING'}
+                            >
+                                {isPlayingTTS || processingState === 'SPEAKING' ? (
+                                    <ActivityIndicator size="small" color={theme.primary} />
+                                ) : (
+                                    <MaterialIcons name="volume-up" size={20} color={theme.primary} />
+                                )}
+                            </TouchableOpacity>
                         </View>
                         <Text style={[styles.aiSummary, { color: theme.textPrimary }]}>{aiAnalysis.summary}</Text>
                         <View style={styles.riskContainer}>
@@ -412,6 +439,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: SPACING.s,
+        justifyContent: 'space-between',
+    },
+    ttsButton: {
+        padding: SPACING.xs,
+        marginLeft: SPACING.s,
     },
     aiTitle: {
         fontWeight: '700',

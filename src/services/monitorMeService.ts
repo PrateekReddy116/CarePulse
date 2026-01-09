@@ -2,9 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import { loadProfile } from './profileService';
+import { startLiveLocationSharing, stopLiveLocationSharing, getLiveLocationWS } from './liveLocationService';
+import { supabase } from '../lib/supabase';
+import { notifyLiveLocationToContacts } from './liveLocationNotificationService';
 
 const MONITOR_ME_KEY = '@carepulse_monitor_me';
-const LOCATION_UPDATE_INTERVAL = 10000; // 10 seconds
+const LOCATION_UPDATE_INTERVAL = 10000; // 10 seconds (local storage)
+// WebSocket updates every 2 seconds (handled by liveLocationService)
 
 export interface MonitorMeSession {
     id: string;
@@ -22,9 +26,11 @@ export interface MonitorMeSession {
 
 let locationSubscription: Location.LocationSubscription | null = null;
 let currentSession: MonitorMeSession | null = null;
+let wsSessionId: string | null = null;
 
 /**
  * Start monitoring session - share live location with selected contacts
+ * Now uses WebSocket for real-time sharing
  */
 export const startMonitorMe = async (contactIds: string[]): Promise<MonitorMeSession> => {
     try {
@@ -33,6 +39,18 @@ export const startMonitorMe = async (contactIds: string[]): Promise<MonitorMeSes
         if (status !== 'granted') {
             throw new Error('Location permission is required for Monitor Me');
         }
+
+        // Get current user ID for WebSocket session
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            throw new Error('User not authenticated');
+        }
+
+        const volunteerId = user.id;
+        wsSessionId = `session_${volunteerId}_${Date.now()}`;
+
+        // Load profile for notifications
+        const profile = await loadProfile();
 
         // Get initial location
         const initialLocation = await Location.getCurrentPositionAsync({
@@ -48,13 +66,38 @@ export const startMonitorMe = async (contactIds: string[]): Promise<MonitorMeSes
                 timestamp: new Date().toISOString(),
                 latitude: initialLocation.coords.latitude,
                 longitude: initialLocation.coords.longitude,
-                accuracy: initialLocation.coords.accuracy,
+                accuracy: initialLocation.coords.accuracy ?? undefined,
             }],
         };
 
         currentSession = session;
 
-        // Start location tracking
+        // Start WebSocket live location sharing
+        await startLiveLocationSharing(
+            wsSessionId,
+            volunteerId,
+            async () => {
+                const location = await Location.getCurrentPositionAsync({
+                    accuracy: Location.Accuracy.High,
+                });
+                return {
+                    latitude: location.coords.latitude,
+                    longitude: location.coords.longitude,
+                };
+            }
+        );
+
+        // Setup WebSocket event handlers
+        const ws = getLiveLocationWS();
+        ws.onSessionStarted(() => {
+            console.log('📍 WebSocket live location session started');
+        });
+
+        ws.onError((error) => {
+            console.error('❌ WebSocket error:', error);
+        });
+
+        // Also track location locally for history
         locationSubscription = await Location.watchPositionAsync(
             {
                 accuracy: Location.Accuracy.High,
@@ -67,7 +110,7 @@ export const startMonitorMe = async (contactIds: string[]): Promise<MonitorMeSes
                         timestamp: new Date().toISOString(),
                         latitude: location.coords.latitude,
                         longitude: location.coords.longitude,
-                        accuracy: location.coords.accuracy,
+                        accuracy: location.coords.accuracy ?? undefined,
                     });
 
                     // Save session periodically
@@ -79,14 +122,24 @@ export const startMonitorMe = async (contactIds: string[]): Promise<MonitorMeSes
         // Save session
         await saveMonitorMeSession(session);
 
-        // Send notification to shared contacts (mock - in real app, send via backend)
+        // Notify app users in contacts (if they are registered) about live location session
+        try {
+            await notifyLiveLocationToContacts(wsSessionId, profile.name || 'Someone', profile.contacts || []);
+        } catch (notifyError) {
+            console.error('Failed to notify contacts of live location:', notifyError);
+        }
+
+        // Local device notification for the owner
         await Notifications.scheduleNotificationAsync({
             content: {
                 title: 'Monitor Me Started',
-                body: 'Your location is now being shared with selected contacts.',
+                body: 'Your location is now being shared in real-time with selected contacts.',
             },
             trigger: null,
         });
+
+        // Notify contacts via Supabase notifications (if they're app users)
+        // This will be handled by the backend/commsService
 
         return session;
     } catch (error) {
@@ -100,6 +153,10 @@ export const startMonitorMe = async (contactIds: string[]): Promise<MonitorMeSes
  */
 export const stopMonitorMe = async (): Promise<void> => {
     try {
+        // Stop WebSocket live location sharing
+        stopLiveLocationSharing();
+        wsSessionId = null;
+
         if (locationSubscription) {
             locationSubscription.remove();
             locationSubscription = null;
@@ -123,6 +180,13 @@ export const stopMonitorMe = async (): Promise<void> => {
         console.error('Failed to stop Monitor Me:', error);
         throw error;
     }
+};
+
+/**
+ * Get current WebSocket session ID (for viewers to subscribe)
+ */
+export const getCurrentSessionId = (): string | null => {
+    return wsSessionId;
 };
 
 /**
