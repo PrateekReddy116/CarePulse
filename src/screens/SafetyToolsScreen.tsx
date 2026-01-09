@@ -6,7 +6,7 @@ import { Card } from '../components/Card';
 import { SPACING, FONT_SIZE, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useTheme } from '../context/ThemeContext';
-import { Eye, Timer, MapPin, ChevronRight, Navigation as NavigationIcon } from 'lucide-react-native';
+import { Eye, Timer, MapPin, ChevronRight, Navigation as NavigationIcon, Bluetooth, Users } from 'lucide-react-native';
 import { getCurrentSessionId } from '../services/monitorMeService';
 import { useEmergency } from '../context/EmergencyContext';
 import { getLatestIncomingLiveLocation } from '../services/liveLocationNotificationService';
@@ -57,6 +57,74 @@ export const SafetyToolsScreen: React.FC<Props> = ({ navigation }) => {
                 <Text style={[styles.title, { color: theme.textPrimary }]}>Safety Tools</Text>
 
                 <View style={styles.cardsContainer}>
+                    {/* Sathi - ESP32 BLE Pairing */}
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => navigation.navigate('Sathi')}
+                    >
+                        <Card style={StyleSheet.flatten([
+                            styles.toolCard,
+                            {
+                                backgroundColor: isDark ? 'rgba(80, 40, 120, 0.3)' : '#F3E8FF',
+                                shadowColor: isDark ? SHADOWS.dark.shadowColor : SHADOWS.light.shadowColor,
+                                shadowOffset: isDark ? SHADOWS.dark.shadowOffset : SHADOWS.light.shadowOffset,
+                                shadowOpacity: isDark ? SHADOWS.dark.shadowOpacity : SHADOWS.light.shadowOpacity,
+                                shadowRadius: isDark ? SHADOWS.dark.shadowRadius : SHADOWS.light.shadowRadius,
+                                elevation: isDark ? SHADOWS.dark.elevation : SHADOWS.light.elevation,
+                            },
+                        ]) as ViewStyle}>
+                            <View style={styles.cardContent}>
+                                <View style={styles.cardLeft}>
+                                    <View style={[styles.iconCircle, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.9)' }]}>
+                                        <Bluetooth size={36} color={theme.secondary} />
+                                    </View>
+                                    <View style={styles.textContainer}>
+                                        <Text style={[styles.toolTitle, { color: theme.textPrimary }]}>Sathi</Text>
+                                        <Text style={[styles.toolSubtitleBold, { color: theme.textPrimary }]}>ESP32 BLE connection.</Text>
+                                        <Text style={[styles.toolSubtitle, { color: theme.textSecondary }]}>
+                                            Pair and connect your ESP32 device via Bluetooth Low Energy to receive real-time safety data and alerts.
+                                        </Text>
+                                    </View>
+                                </View>
+                                <ChevronRight size={24} color={theme.textSecondary} />
+                            </View>
+                        </Card>
+                    </TouchableOpacity>
+
+                    {/* Travel Buddy */}
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => navigation.navigate('TravelBuddy')}
+                    >
+                        <Card style={StyleSheet.flatten([
+                            styles.toolCard,
+                            {
+                                backgroundColor: isDark ? 'rgba(40, 80, 120, 0.3)' : '#E0F2FE',
+                                shadowColor: isDark ? SHADOWS.dark.shadowColor : SHADOWS.light.shadowColor,
+                                shadowOffset: isDark ? SHADOWS.dark.shadowOffset : SHADOWS.light.shadowOffset,
+                                shadowOpacity: isDark ? SHADOWS.dark.shadowOpacity : SHADOWS.light.shadowOpacity,
+                                shadowRadius: isDark ? SHADOWS.dark.shadowRadius : SHADOWS.light.shadowRadius,
+                                elevation: isDark ? SHADOWS.dark.elevation : SHADOWS.light.elevation,
+                            },
+                        ]) as ViewStyle}>
+                            <View style={styles.cardContent}>
+                                <View style={styles.cardLeft}>
+                                    <View style={[styles.iconCircle, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.9)' }]}>
+                                        <Users size={36} color={theme.primary} />
+                                    </View>
+                                    <View style={styles.textContainer}>
+                                        <Text style={[styles.toolTitle, { color: theme.textPrimary }]}>Travel Buddy</Text>
+                                        <Text style={[styles.toolSubtitleBold, { color: theme.textPrimary }]}>Find safe travel companions.</Text>
+                                        <Text style={[styles.toolSubtitle, { color: theme.textSecondary }]}>
+                                            Share your travel route and find trusted companions from our community. Connect through chat rooms and travel together safely.
+                                        </Text>
+                                    </View>
+                                </View>
+                                <ChevronRight size={24} color={theme.textSecondary} />
+                            </View>
+                        </Card>
+                    </TouchableOpacity>
+
                     <TouchableOpacity
                         activeOpacity={0.7}
                         onPress={() => navigation.navigate('MonitorMe')}

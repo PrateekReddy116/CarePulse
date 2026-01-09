@@ -27,6 +27,9 @@ import { GeofencingScreen } from '../screens/GeofencingScreen';
 import { SearchUsersScreen } from '../screens/SearchUsersScreen';
 import { CommunitiesScreen } from '../screens/CommunitiesScreen';
 import { LiveLocationViewerScreen } from '../screens/LiveLocationViewerScreen';
+import { SathiScreen } from '../screens/SathiScreen';
+import { TravelBuddyScreen } from '../screens/TravelBuddyScreen';
+import { TravelBuddyChatScreen } from '../screens/TravelBuddyChatScreen';
 
 export type RootStackParamList = {
     // Auth Stack
@@ -37,6 +40,8 @@ export type RootStackParamList = {
     MainTabs: undefined;
     Home: undefined;
     SafetyTools: undefined;
+    Sathi: undefined;
+    TravelBuddy: undefined;
     MonitorMe: undefined;
     SOSTimer: undefined;
     Geofencing: undefined;
@@ -44,6 +49,7 @@ export type RootStackParamList = {
     SearchUsers: undefined;
     Communities: undefined;
     Chat: { contact: { id: string; name: string; phone?: string; avatar?: string; relationship?: string } };
+    TravelBuddyChat: { travelRequestId: string; chatRoomId: string; otherUserName: string };
     LiveLocationViewer: { sessionId: string; volunteerName?: string };
     UserProfile: undefined;
     SOSActivation: undefined;
@@ -71,6 +77,9 @@ const MainNavigator = () => {
             <Stack.Screen name="MainTabs" component={MainTabsScreen} />
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="SafetyTools" component={SafetyToolsScreen} />
+            <Stack.Screen name="Sathi" component={SathiScreen} />
+            <Stack.Screen name="TravelBuddy" component={TravelBuddyScreen} />
+            <Stack.Screen name="TravelBuddyChat" component={TravelBuddyChatScreen} />
             <Stack.Screen name="MonitorMe" component={MonitorMeScreen} />
             <Stack.Screen name="SOSTimer" component={SOSTimerScreen} />
             <Stack.Screen name="Geofencing" component={GeofencingScreen} />
