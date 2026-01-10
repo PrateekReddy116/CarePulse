@@ -1,16 +1,15 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeScreen } from '../components/SafeScreen';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { MapPlaceholder } from '../components/MapPlaceholder';
 import { SPACING, FONT_SIZE, BORDER_RADIUS } from '../constants/theme';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useEmergency } from '../context/EmergencyContext';
 import { useTheme } from '../context/ThemeContext';
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import { AlertTriangle, CheckCircle, Clock } from 'lucide-react-native';
-import { lightMapStyle, darkMapStyle } from '../constants/mapStyles';
 
 type HelpStatusScreenNavigationProp = StackNavigationProp<RootStackParamList, 'HelpStatus'>;
 
@@ -44,39 +43,11 @@ export const HelpStatusScreen: React.FC<Props> = ({ navigation }) => {
             </View>
 
             <View style={[styles.mapContainer, { borderColor: theme.border }]}>
-                <MapView
-                    provider={PROVIDER_DEFAULT}
+                <MapPlaceholder
+                    latitude={location?.coords.latitude}
+                    longitude={location?.coords.longitude}
                     style={styles.map}
-                    region={{
-                        latitude: location?.coords.latitude || 37.78825,
-                        longitude: location?.coords.longitude || -122.4324,
-                        latitudeDelta: 0.01,
-                        longitudeDelta: 0.01,
-                    }}
-                    userInterfaceStyle={isDark ? 'dark' : 'light'}
-                    customMapStyle={Platform.OS === 'android' ? (isDark ? darkMapStyle : lightMapStyle) : undefined}
-                >
-                    {location && (
-                        <Marker
-                            coordinate={{
-                                latitude: location.coords.latitude,
-                                longitude: location.coords.longitude,
-                            }}
-                            title="You"
-                        />
-                    )}
-                    {primaryVolunteer && (
-                        <Marker
-                            coordinate={{
-                                latitude: primaryVolunteer.latitude,
-                                longitude: primaryVolunteer.longitude,
-                            }}
-                            pinColor={theme.primary}
-                            title={primaryVolunteer.name}
-                            description="Primary Volunteer"
-                        />
-                    )}
-                </MapView>
+                />
             </View>
 
             <ScrollView contentContainerStyle={styles.scrollContent}>

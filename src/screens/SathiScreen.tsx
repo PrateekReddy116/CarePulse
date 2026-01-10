@@ -1,13 +1,19 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeScreen } from '../components/SafeScreen';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
-import { SPACING, FONT_SIZE, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { SPACING, FONT_SIZE, BORDER_RADIUS } from '../constants/theme';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useTheme } from '../context/ThemeContext';
+import { useEmergency } from '../context/EmergencyContext';
 import { Bluetooth, ChevronLeft, CheckCircle, XCircle } from 'lucide-react-native';
+import Constants from 'expo-constants';
+
+// Import BLE service - will work in dev builds
+import { bleService } from '../services/bleService';
+import { Device } from 'react-native-ble-plx';
 
 type SathiScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Sathi'>;
 
@@ -16,27 +22,92 @@ interface Props {
 }
 
 export const SathiScreen: React.FC<Props> = ({ navigation }) => {
-    const { theme, isDark } = useTheme();
+    const { theme } = useTheme();
+    const { triggerSOS } = useEmergency();
     const [isScanning, setIsScanning] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
     const [deviceName, setDeviceName] = useState<string | null>(null);
+    const [discoveredDevices, setDiscoveredDevices] = useState<any[]>([]);
+    const [showDeviceList, setShowDeviceList] = useState(false);
+
+    // Check if BLE is available (only in dev builds, not Expo Go)
+    const isBLEAvailable = Constants.appOwnership !== 'expo';
+
+    useEffect(() => {
+        if (!isBLEAvailable) return;
+
+        setIsConnected(bleService.isConnected());
+        const device = bleService.getConnectedDevice();
+        if (device) {
+            setDeviceName(device.name || 'ESP32-Sathi');
+        }
+
+        return () => {
+            bleService.stopMonitoring();
+        };
+    }, [isBLEAvailable]);
 
     const handleScanForDevices = async () => {
-        setIsScanning(true);
-        // TODO: Implement BLE scanning for ESP32 devices
-        // This will require react-native-ble-plx or similar library
-        // For now, show a placeholder message
-        setTimeout(() => {
-            setIsScanning(false);
+        if (!isBLEAvailable) {
             Alert.alert(
-                'BLE Scanning',
-                'BLE functionality requires a development build. This feature will be available in the production version.',
+                'BLE Not Available',
+                'Bluetooth Low Energy is only available in development builds. Please use the CarePulse app (not Expo Go).',
                 [{ text: 'OK' }]
             );
-        }, 2000);
+            return;
+        }
+        setIsScanning(true);
+        setDiscoveredDevices([]);
+        setShowDeviceList(true);
+
+        await bleService.scanForDevices(
+            (device) => {
+                setDiscoveredDevices((prev) => {
+                    const exists = prev.find((d) => d.id === device.id);
+                    if (!exists) {
+                        return [...prev, device];
+                    }
+                    return prev;
+                });
+            },
+            10000
+        );
+
+        setTimeout(() => {
+            setIsScanning(false);
+        }, 10000);
     };
 
-    const handleDisconnect = () => {
+    const handleConnectToDevice = async (device: Device) => {
+        setIsScanning(false);
+        setShowDeviceList(false);
+
+        const success = await bleService.connectToDevice(device);
+        if (success) {
+            setIsConnected(true);
+            setDeviceName(device.name || 'ESP32-Sathi');
+            Alert.alert('Connected', `Successfully connected to ${device.name || 'ESP32 device'}`);
+
+            bleService.monitorData(async (data) => {
+                console.log('Received from ESP32:', data);
+                if (data.includes('EMERGENCY')) {
+                    // Automatically trigger SOS
+                    console.log('🚨 EMERGENCY DETECTED - Triggering SOS');
+                    Alert.alert('🚨 Emergency Detected!', 'ESP32 triggered emergency. Activating SOS...');
+                    
+                    // Trigger SOS and wait for it to complete
+                    await triggerSOS();
+                    
+                    // Navigate to SOS screen
+                    navigation.navigate('SOSActivation');
+                }
+            });
+        }
+    };
+
+    const handleDisconnect = async () => {
+        bleService.stopMonitoring();
+        await bleService.disconnect();
         setIsConnected(false);
         setDeviceName(null);
         Alert.alert('Disconnected', 'ESP32 device has been disconnected.');
@@ -61,6 +132,13 @@ export const SathiScreen: React.FC<Props> = ({ navigation }) => {
                     <Text style={[styles.infoText, { color: theme.textSecondary }]}>
                         Connect your ESP32 device via Bluetooth Low Energy to receive real-time safety data, sensor readings, and emergency alerts directly to your phone.
                     </Text>
+                    {!isBLEAvailable && (
+                        <View style={[styles.warningBox, { backgroundColor: theme.warning + '20', borderColor: theme.warning }]}>
+                            <Text style={[styles.warningText, { color: theme.warning }]}>
+                                ⚠️ BLE is only available in development builds. Please use the CarePulse app instead of Expo Go.
+                            </Text>
+                        </View>
+                    )}
                 </Card>
 
                 {isConnected ? (
@@ -97,6 +175,38 @@ export const SathiScreen: React.FC<Props> = ({ navigation }) => {
                             loading={isScanning}
                             style={styles.scanButton}
                         />
+
+                        {/* Device List */}
+                        {showDeviceList && discoveredDevices.length > 0 && (
+                            <View style={styles.deviceListContainer}>
+                                <Text style={[styles.deviceListTitle, { color: theme.textPrimary }]}>
+                                    Found Devices:
+                                </Text>
+                                {discoveredDevices.map((device) => (
+                                    <TouchableOpacity
+                                        key={device.id}
+                                        style={[styles.deviceItem, { backgroundColor: theme.background, borderColor: theme.border }]}
+                                        onPress={() => handleConnectToDevice(device)}
+                                    >
+                                        <Bluetooth size={20} color={theme.primary} />
+                                        <View style={styles.deviceInfo}>
+                                            <Text style={[styles.deviceItemName, { color: theme.textPrimary }]}>
+                                                {device.name || 'Unknown Device'}
+                                            </Text>
+                                            <Text style={[styles.deviceItemId, { color: theme.textSecondary }]}>
+                                                {device.id}
+                                            </Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        )}
+
+                        {showDeviceList && !isScanning && discoveredDevices.length === 0 && (
+                            <Text style={[styles.noDevicesText, { color: theme.textSecondary }]}>
+                                No devices found. Make sure your ESP32 is powered on and nearby.
+                            </Text>
+                        )}
                     </Card>
                 )}
 
@@ -249,6 +359,51 @@ const styles = StyleSheet.create({
     noteText: {
         fontSize: FONT_SIZE.s,
         lineHeight: 18,
+        fontStyle: 'italic',
+    },
+    warningBox: {
+        padding: SPACING.m,
+        borderRadius: BORDER_RADIUS.m,
+        borderWidth: 1,
+        marginTop: SPACING.m,
+    },
+    warningText: {
+        fontSize: FONT_SIZE.s,
+        lineHeight: 18,
+        fontWeight: '600',
+    },
+    deviceListContainer: {
+        marginTop: SPACING.m,
+    },
+    deviceListTitle: {
+        fontSize: FONT_SIZE.m,
+        fontWeight: '600',
+        marginBottom: SPACING.s,
+    },
+    deviceItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: SPACING.m,
+        borderRadius: BORDER_RADIUS.s,
+        borderWidth: 1,
+        marginBottom: SPACING.s,
+        gap: SPACING.m,
+    },
+    deviceInfo: {
+        flex: 1,
+    },
+    deviceItemName: {
+        fontSize: FONT_SIZE.m,
+        fontWeight: '600',
+        marginBottom: 2,
+    },
+    deviceItemId: {
+        fontSize: FONT_SIZE.s,
+    },
+    noDevicesText: {
+        fontSize: FONT_SIZE.m,
+        marginTop: SPACING.m,
+        textAlign: 'center',
         fontStyle: 'italic',
     },
 });

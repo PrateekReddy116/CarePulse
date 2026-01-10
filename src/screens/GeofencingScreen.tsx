@@ -12,14 +12,13 @@ import {
     Alert,
     Modal,
 } from 'react-native';
-import MapView, { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps';
+import { OpenStreetMap } from '../components/OpenStreetMap';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SPACING, FONT_SIZE, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useTheme } from '../context/ThemeContext';
 import { useEmergency } from '../context/EmergencyContext';
 import { ChevronLeft, MapPin, Plus, Trash2, Edit2, Bell, BellOff } from 'lucide-react-native';
-import { lightMapStyle, darkMapStyle } from '../constants/mapStyles';
 import {
     createGeofence,
     updateGeofence,
@@ -237,50 +236,28 @@ export const GeofencingScreen: React.FC<Props> = ({ navigation }) => {
             <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
                 {/* Map */}
                 <View style={styles.mapContainer}>
-                    <MapView
-                        provider={PROVIDER_DEFAULT}
-                        style={styles.map}
-                        initialRegion={initialRegion}
-                        region={location ? {
-                            latitude: location.coords.latitude,
-                            longitude: location.coords.longitude,
-                            latitudeDelta: 0.01,
-                            longitudeDelta: 0.01,
-                        } : undefined}
-                        showsUserLocation
-                        onPress={handleMapPress}
-                        userInterfaceStyle={isDark ? 'dark' : 'light'}
-                        customMapStyle={Platform.OS === 'android' ? (isDark ? darkMapStyle : lightMapStyle) : undefined}
-                    >
-                    {geofences.map((geofence) => (
-                        <React.Fragment key={geofence.id}>
-                            <Circle
-                                center={{
-                                    latitude: geofence.latitude,
-                                    longitude: geofence.longitude,
-                                }}
-                                radius={geofence.radius}
-                                fillColor={geofence.isActive ? theme.primary + '30' : theme.textSecondary + '20'}
-                                strokeColor={geofence.isActive ? theme.primary : theme.textSecondary}
-                                strokeWidth={2}
-                            />
-                            <Marker
-                                coordinate={{
-                                    latitude: geofence.latitude,
-                                    longitude: geofence.longitude,
-                                }}
-                                title={geofence.name}
-                                pinColor={geofence.isActive ? theme.primary : theme.textSecondary}
-                            />
-                        </React.Fragment>
-                    ))}
-                    {selectedLocation && (
-                        <Marker
-                            coordinate={selectedLocation}
-                            pinColor={theme.primary}
+                    {location ? (
+                        <OpenStreetMap
+                            latitude={location.coords.latitude}
+                            longitude={location.coords.longitude}
+                            markers={geofences.map((g) => ({
+                                lat: g.latitude,
+                                lng: g.longitude,
+                                label: g.name,
+                                color: g.isActive ? theme.primary : theme.textSecondary,
+                            }))}
+                            zoom={13}
+                            isDark={isDark}
+                            style={styles.map}
                         />
+                    ) : (
+                        <View style={[styles.noLocation, { backgroundColor: theme.surface }]}>
+                            <MapPin size={48} color={theme.textSecondary} />
+                            <Text style={[styles.noLocationText, { color: theme.textSecondary }]}>
+                                Location not available
+                            </Text>
+                        </View>
                     )}
-                    </MapView>
                 </View>
 
                 {/* Geofences List */}
@@ -474,6 +451,18 @@ const styles = StyleSheet.create({
     mapContainer: {
         height: 300,
         marginBottom: SPACING.m,
+        borderRadius: BORDER_RADIUS.m,
+        overflow: 'hidden',
+    },
+    noLocation: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: BORDER_RADIUS.m,
+    },
+    noLocationText: {
+        marginTop: SPACING.m,
+        fontSize: FONT_SIZE.m,
     },
     map: {
         flex: 1,

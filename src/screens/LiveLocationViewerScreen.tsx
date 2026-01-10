@@ -10,7 +10,7 @@ import {
     ActivityIndicator,
     Alert,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
+import { MapPlaceholder } from '../components/MapPlaceholder';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SPACING, FONT_SIZE, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -20,7 +20,6 @@ import {
     getLiveLocationWS,
     LocationUpdate,
 } from '../services/liveLocationService';
-import { lightMapStyle, darkMapStyle } from '../constants/mapStyles';
 
 type LiveLocationViewerScreenNavigationProp = StackNavigationProp<RootStackParamList, 'LiveLocationViewer'>;
 
@@ -206,48 +205,11 @@ export const LiveLocationViewerScreen: React.FC<Props> = ({ navigation, route })
 
             {/* Map */}
             <Animated.View style={[styles.mapContainer, { opacity: fadeAnim }]}>
-                <MapView
-                    ref={mapRef}
-                    provider={PROVIDER_DEFAULT}
+                <MapPlaceholder
+                    latitude={location?.lat}
+                    longitude={location?.lng}
                     style={styles.map}
-                    initialRegion={initialRegion}
-                    region={location ? {
-                        latitude: location.lat,
-                        longitude: location.lng,
-                        latitudeDelta: 0.01,
-                        longitudeDelta: 0.01,
-                    } : undefined}
-                    showsUserLocation={false}
-                    userInterfaceStyle={isDark ? 'dark' : 'light'}
-                    customMapStyle={Platform.OS === 'android' ? (isDark ? darkMapStyle : lightMapStyle) : undefined}
-                >
-                    {location && (
-                        <Marker
-                            coordinate={{
-                                latitude: location.lat,
-                                longitude: location.lng,
-                            }}
-                            title={volunteerName}
-                            description="Live Location"
-                            anchor={{ x: 0.5, y: 0.5 }}
-                        >
-                            <Animated.View
-                                style={{
-                                    transform: [{ scale: markerScaleAnim }],
-                                }}
-                            >
-                                <View
-                                    style={[
-                                        styles.markerContainer,
-                                        { backgroundColor: theme.primary },
-                                    ]}
-                                >
-                                    <NavigationIcon size={24} color="#FFFFFF" />
-                                </View>
-                            </Animated.View>
-                        </Marker>
-                    )}
-                </MapView>
+                />
 
                 {/* Loading Overlay */}
                 {!location && !error && (

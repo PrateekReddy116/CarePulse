@@ -44,6 +44,22 @@ export const VolunteerMatchingScreen: React.FC<Props> = ({ navigation }) => {
                 </View>
 
                 <ScrollView contentContainerStyle={styles.content}>
+                    {/* Optional Incident Report Button */}
+                    <Card style={[styles.reportCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                        <Text style={[styles.reportTitle, { color: theme.textPrimary }]}>
+                            Want to provide more details?
+                        </Text>
+                        <Text style={[styles.reportSubtitle, { color: theme.textSecondary }]}>
+                            Optional: Describe what happened to help responders
+                        </Text>
+                        <Button
+                            title="Report Incident Details"
+                            onPress={() => navigation.navigate('IncidentReport')}
+                            variant="outline"
+                            style={styles.reportButton}
+                        />
+                    </Card>
+
                     {!isSearching && activeVolunteers.length === 0 && (
                         <Text style={[styles.noVolunteers, { color: theme.textSecondary }]}>No volunteers found nearby.</Text>
                     )}
@@ -87,6 +103,24 @@ const styles = StyleSheet.create({
     },
     content: {
         padding: SPACING.l,
+    },
+    reportCard: {
+        padding: SPACING.l,
+        marginBottom: SPACING.l,
+        borderWidth: 1,
+        borderRadius: BORDER_RADIUS.m,
+    },
+    reportTitle: {
+        fontSize: FONT_SIZE.l,
+        fontWeight: '600',
+        marginBottom: SPACING.s,
+    },
+    reportSubtitle: {
+        fontSize: FONT_SIZE.m,
+        marginBottom: SPACING.m,
+    },
+    reportButton: {
+        marginTop: SPACING.s,
     },
     noVolunteers: {
         textAlign: 'center',

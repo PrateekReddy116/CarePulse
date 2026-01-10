@@ -28,6 +28,7 @@ import { SearchUsersScreen } from '../screens/SearchUsersScreen';
 import { CommunitiesScreen } from '../screens/CommunitiesScreen';
 import { LiveLocationViewerScreen } from '../screens/LiveLocationViewerScreen';
 import { SathiScreen } from '../screens/SathiScreen';
+import { SafetyHeatmapScreen } from '../screens/SafetyHeatmapScreen';
 import { TravelBuddyScreen } from '../screens/TravelBuddyScreen';
 import { TravelBuddyChatScreen } from '../screens/TravelBuddyChatScreen';
 
@@ -40,6 +41,7 @@ export type RootStackParamList = {
     MainTabs: undefined;
     Home: undefined;
     SafetyTools: undefined;
+    SafetyHeatmap: undefined;
     Sathi: undefined;
     TravelBuddy: undefined;
     MonitorMe: undefined;
@@ -77,6 +79,7 @@ const MainNavigator = () => {
             <Stack.Screen name="MainTabs" component={MainTabsScreen} />
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="SafetyTools" component={SafetyToolsScreen} />
+            <Stack.Screen name="SafetyHeatmap" component={SafetyHeatmapScreen} />
             <Stack.Screen name="Sathi" component={SathiScreen} />
             <Stack.Screen name="TravelBuddy" component={TravelBuddyScreen} />
             <Stack.Screen name="TravelBuddyChat" component={TravelBuddyChatScreen} />

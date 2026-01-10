@@ -48,10 +48,11 @@ export const SOSActivationScreen: React.FC<Props> = ({ navigation }) => {
             trigger: null,
         });
 
-        // Trigger SOS logic (auto-assignment)
+        // Trigger SOS logic (auto-assignment) - This sends alerts immediately
         await triggerSOS();
 
-        navigation.replace('IncidentReport');
+        // Navigate directly to HelpStatus (volunteers already assigned)
+        navigation.replace('HelpStatus');
     };
 
     const handleCancel = () => {

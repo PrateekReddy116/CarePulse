@@ -4,6 +4,8 @@ import { assignVolunteers, AssignedVolunteers, Volunteer } from '../services/vol
 import { loadProfile, UserProfile, initialProfile } from '../services/profileService';
 import { generateAIIncidentSummary, IncidentSummary } from '../services/aiService';
 import { startEvidenceCapture, stopEvidenceCapture, saveEvidenceLocally, isEvidenceCaptureActive } from '../services/evidenceCaptureService';
+import { sendEmergencyAlerts } from '../services/emergencyNotificationService';
+import { createSOSNotification } from '../services/sosNotificationService';
 
 interface EmergencyContextType {
     location: Location.LocationObject | null;
@@ -33,35 +35,46 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const [profileLoading, setProfileLoading] = useState(true);
 
     useEffect(() => {
-        (async () => {
-            let { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== 'granted') {
-                console.log('Permission to access location was denied');
-                // Ensure loading is set to false even if permission denied, though app usage might be limited
+        let subscription: Location.LocationSubscription | null = null;
+
+        const initializeLocation = async () => {
+            try {
+                // Load profile first
+                const profile = await loadProfile();
+                setUserProfile(profile);
+                setProfileLoading(false);
+
+                // Request location permissions
+                const { status } = await Location.requestForegroundPermissionsAsync();
+                if (status !== 'granted') {
+                    console.log('Permission to access location was denied');
+                    return;
+                }
+
+                // Get current location
+                const currentLocation = await Location.getCurrentPositionAsync({});
+                setLocation(currentLocation);
+
+                // Subscribe to location updates
+                subscription = await Location.watchPositionAsync(
+                    { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 10 },
+                    (newLocation) => {
+                        setLocation(newLocation);
+                    }
+                );
+            } catch (error) {
+                console.error('Error initializing location:', error);
+                setProfileLoading(false);
             }
+        };
 
-            let location = await Location.getCurrentPositionAsync({});
-            setLocation(location);
+        initializeLocation();
 
-            // Subscribe to location updates
-            const subscription = await Location.watchPositionAsync(
-                { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 10 },
-                (newLocation) => {
-                    setLocation(newLocation);
-                }
-            );
-
-            // Load profile on startup
-            const profile = await loadProfile();
-            setUserProfile(profile);
-            setProfileLoading(false);
-
-            return () => {
-                if (subscription) {
-                    subscription.remove();
-                }
-            };
-        })();
+        return () => {
+            if (subscription) {
+                subscription.remove();
+            }
+        };
     }, []);
 
     const triggerSOS = async () => {
@@ -70,6 +83,25 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         // Load latest profile to ensure we have up-to-date info
         const profile = await loadProfile();
         setUserProfile(profile);
+
+        // Send emergency alerts to contacts
+        if (profile.contacts && profile.contacts.length > 0) {
+            const locationCoords = location ? {
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude
+            } : undefined;
+            
+            // Send SMS alerts
+            await sendEmergencyAlerts(profile.contacts, locationCoords, profile.name);
+            
+            // Create database notification
+            await createSOSNotification(
+                profile.name,
+                profile.phone,
+                profile.contacts,
+                locationCoords
+            );
+        }
 
         // Start evidence capture if enabled
         if (profile.enableEvidenceCapture) {

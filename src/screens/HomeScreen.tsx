@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Image, Platform } from 'react-native';
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Image, Modal, ScrollView } from 'react-native';
+import { OpenStreetMap } from '../components/OpenStreetMap';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { SafeScreen } from '../components/SafeScreen';
 import { SPACING, FONT_SIZE, BORDER_RADIUS } from '../constants/theme';
@@ -8,8 +8,9 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { useEmergency } from '../context/EmergencyContext';
 import { useTheme } from '../context/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BottomNav } from '../components/BottomNav';
-import { lightMapStyle, darkMapStyle } from '../constants/mapStyles';
+import { Bell, X } from 'lucide-react-native';
+import { getUnreadSOSNotifications, markNotificationAsRead, SOSNotification } from '../services/sosNotificationService';
+import { useFocusEffect } from '@react-navigation/native';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -20,6 +21,8 @@ interface Props {
 export const HomeScreen: React.FC<Props> = ({ navigation }) => {
     const { location, triggerSOS, userProfile } = useEmergency();
     const { theme, isDark } = useTheme();
+    const [notifications, setNotifications] = useState<SOSNotification[]>([]);
+    const [showNotifications, setShowNotifications] = useState(false);
 
     const avatars = [
         {
@@ -38,6 +41,28 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
     // Pulse Animation Values
     const pulseAnim = useRef(new Animated.Value(1)).current;
+
+    // Load notifications when screen is focused
+    useFocusEffect(
+        React.useCallback(() => {
+            loadNotifications();
+            const interval = setInterval(loadNotifications, 30000); // Refresh every 30s
+            return () => clearInterval(interval);
+        }, [userProfile.phone])
+    );
+
+    const loadNotifications = async () => {
+        if (!userProfile.phone) return;
+        const unread = await getUnreadSOSNotifications(userProfile.phone);
+        setNotifications(unread);
+    };
+
+    const handleNotificationPress = async (notification: SOSNotification) => {
+        await markNotificationAsRead(notification.id, userProfile.phone);
+        setShowNotifications(false);
+        loadNotifications();
+        // You can navigate to a detail screen or show location on map
+    };
 
     useEffect(() => {
         const startPulse = () => {
@@ -67,13 +92,6 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
         navigation.navigate('SOSActivation');
     };
 
-    const initialRegion = {
-        latitude: location?.coords.latitude || 37.78825,
-        longitude: location?.coords.longitude || -122.4324,
-        latitudeDelta: 0.0922,
-        longitudeDelta: 0.0421,
-    };
-
     return (
         <SafeScreen
             style={{
@@ -86,30 +104,22 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
             }}
         >
             <View style={{ flex: 1 }}>
-                <MapView
-                    provider={PROVIDER_DEFAULT}
-                    style={styles.map}
-                    region={location ? {
-                        latitude: location.coords.latitude,
-                        longitude: location.coords.longitude,
-                        latitudeDelta: 0.01,
-                        longitudeDelta: 0.01,
-                    } : initialRegion}
-                    showsUserLocation
-                    followsUserLocation
-                    userInterfaceStyle={isDark ? 'dark' : 'light'}
-                    customMapStyle={Platform.OS === 'android' ? (isDark ? darkMapStyle : lightMapStyle) : undefined}
-                >
-                    {location && (
-                        <Marker
-                            coordinate={{
-                                latitude: location.coords.latitude,
-                                longitude: location.coords.longitude,
-                            }}
-                            title="You are here"
-                        />
-                    )}
-                </MapView>
+                {location ? (
+                    <OpenStreetMap
+                        latitude={location.coords.latitude}
+                        longitude={location.coords.longitude}
+                        markers={[]}
+                        zoom={15}
+                        isDark={isDark}
+                        style={styles.map}
+                    />
+                ) : (
+                    <View style={[styles.noLocation, { backgroundColor: theme.surface }]}>
+                        <Text style={[styles.noLocationText, { color: theme.textSecondary }]}>
+                            Loading location...
+                        </Text>
+                    </View>
+                )}
 
                 {/* Top gradient with greeting and avatars */}
                 <LinearGradient
@@ -124,6 +134,17 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
                         <Text style={[styles.status, { color: theme.textPrimary }]}>
                             Hello, {userProfile.name || 'John'}!
                         </Text>
+                        <TouchableOpacity
+                            style={[styles.notificationButton, { backgroundColor: theme.surface }]}
+                            onPress={() => setShowNotifications(true)}
+                        >
+                            <Bell size={24} color={theme.textPrimary} />
+                            {notifications.length > 0 && (
+                                <View style={[styles.badge, { backgroundColor: theme.danger }]}>
+                                    <Text style={styles.badgeText}>{notifications.length}</Text>
+                                </View>
+                            )}
+                        </TouchableOpacity>
                     </View>
                     <View style={styles.avatarRow}>
                         {avatars.map((item) => (
@@ -185,6 +206,56 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
                 {/* BottomNav is rendered once in MainTabsScreen */}
             </View>
+
+            {/* Notifications Modal */}
+            <Modal
+                visible={showNotifications}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setShowNotifications(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
+                        <View style={styles.modalHeader}>
+                            <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>
+                                SOS Notifications
+                            </Text>
+                            <TouchableOpacity onPress={() => setShowNotifications(false)}>
+                                <X size={24} color={theme.textPrimary} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView style={styles.notificationsList}>
+                            {notifications.length === 0 ? (
+                                <Text style={[styles.noNotifications, { color: theme.textSecondary }]}>
+                                    No new notifications
+                                </Text>
+                            ) : (
+                                notifications.map((notification) => (
+                                    <TouchableOpacity
+                                        key={notification.id}
+                                        style={[styles.notificationItem, { backgroundColor: theme.background }]}
+                                        onPress={() => handleNotificationPress(notification)}
+                                    >
+                                        <View style={[styles.notificationDot, { backgroundColor: theme.danger }]} />
+                                        <View style={styles.notificationContent}>
+                                            <Text style={[styles.notificationTitle, { color: theme.textPrimary }]}>
+                                                {notification.sender_name}
+                                            </Text>
+                                            <Text style={[styles.notificationMessage, { color: theme.textSecondary }]}>
+                                                {notification.message}
+                                            </Text>
+                                            <Text style={[styles.notificationTime, { color: theme.textSecondary }]}>
+                                                {new Date(notification.created_at).toLocaleString()}
+                                            </Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                ))
+                            )}
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </SafeScreen>
     );
 };
@@ -194,11 +265,107 @@ const styles = StyleSheet.create({
         paddingHorizontal: SPACING.l,
         paddingTop: SPACING.l,
         paddingBottom: SPACING.s,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
     status: {
         fontSize: FONT_SIZE.xl,
         fontWeight: '700',
         letterSpacing: -0.5,
+    },
+    notificationButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        alignItems: 'center',
+        justifyContent: 'center',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+    },
+    badge: {
+        position: 'absolute',
+        top: -2,
+        right: -2,
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    badgeText: {
+        color: '#FFF',
+        fontSize: 10,
+        fontWeight: '700',
+    },
+    noLocation: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    noLocationText: {
+        fontSize: FONT_SIZE.m,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        borderTopLeftRadius: BORDER_RADIUS.xl,
+        borderTopRightRadius: BORDER_RADIUS.xl,
+        maxHeight: '70%',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: SPACING.l,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(0,0,0,0.1)',
+    },
+    modalTitle: {
+        fontSize: FONT_SIZE.xl,
+        fontWeight: '700',
+    },
+    notificationsList: {
+        padding: SPACING.l,
+    },
+    noNotifications: {
+        textAlign: 'center',
+        padding: SPACING.xl,
+        fontSize: FONT_SIZE.m,
+    },
+    notificationItem: {
+        flexDirection: 'row',
+        padding: SPACING.m,
+        borderRadius: BORDER_RADIUS.m,
+        marginBottom: SPACING.s,
+        gap: SPACING.m,
+    },
+    notificationDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        marginTop: 6,
+    },
+    notificationContent: {
+        flex: 1,
+    },
+    notificationTitle: {
+        fontSize: FONT_SIZE.m,
+        fontWeight: '600',
+        marginBottom: 4,
+    },
+    notificationMessage: {
+        fontSize: FONT_SIZE.s,
+        marginBottom: 4,
+    },
+    notificationTime: {
+        fontSize: FONT_SIZE.xs,
     },
     avatarRow: {
         flexDirection: 'row',
