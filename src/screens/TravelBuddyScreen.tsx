@@ -8,9 +8,9 @@ import { Input } from '../components/Input';
 import { SPACING, FONT_SIZE, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useTheme } from '../context/ThemeContext';
-import { ChevronLeft, Users, MapPin, Clock, MessageCircle, Plus } from 'lucide-react-native';
+import { ChevronLeft, Users, MapPin, Clock, MessageCircle, Plus, Trash2 } from 'lucide-react-native';
 import { createTravelRequest, getTravelRequests, acceptTravelRequest, TravelRequest } from '../services/travelBuddyService';
-import { getChatRoomByTravelRequest } from '../services/travelBuddyChatService';
+import { getChatRoomByTravelRequest, deleteChatRoom } from '../services/travelBuddyChatService';
 import { useEmergency } from '../context/EmergencyContext';
 import { useAuth } from '../context/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
@@ -123,6 +123,41 @@ export const TravelBuddyScreen: React.FC<Props> = ({ navigation }) => {
         }
     };
 
+    const handleDeleteChatRoom = async (request: TravelRequest) => {
+        Alert.alert(
+            'Delete Chat Room',
+            'Are you sure you want to delete this chat room? All messages will be permanently deleted.',
+            [
+                {
+                    text: 'Cancel',
+                    style: 'cancel',
+                },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            setLoading(true);
+                            const chatRoom = await getChatRoomByTravelRequest(request.id);
+                            if (chatRoom) {
+                                await deleteChatRoom(chatRoom.id);
+                                Alert.alert('Success', 'Chat room deleted successfully.');
+                                await loadTravelRequests();
+                            } else {
+                                Alert.alert('Error', 'Chat room not found.');
+                            }
+                        } catch (error) {
+                            console.error('Failed to delete chat room:', error);
+                            Alert.alert('Error', 'Failed to delete chat room. Please try again.');
+                        } finally {
+                            setLoading(false);
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
     const renderRequestCard = (request: TravelRequest, isMine: boolean = false) => (
         <Card
             key={request.id}
@@ -176,51 +211,60 @@ export const TravelBuddyScreen: React.FC<Props> = ({ navigation }) => {
                 />
             )}
             {request.status === 'accepted' && (
-                <TouchableOpacity
-                    style={[styles.chatButton, { backgroundColor: theme.primary }]}
-                    onPress={async () => {
-                        try {
-                            // Get chat room for this travel request
-                            const chatRoom = await getChatRoomByTravelRequest(request.id);
-                            if (!chatRoom) {
-                                Alert.alert('Error', 'Chat room not found. Please try again.');
-                                return;
-                            }
+                <View style={styles.chatButtonsContainer}>
+                    <TouchableOpacity
+                        style={[styles.chatButton, { backgroundColor: theme.primary, flex: 1, marginRight: SPACING.xs }]}
+                        onPress={async () => {
+                            try {
+                                // Get chat room for this travel request
+                                const chatRoom = await getChatRoomByTravelRequest(request.id);
+                                if (!chatRoom) {
+                                    Alert.alert('Error', 'Chat room not found. Please try again.');
+                                    return;
+                                }
 
-                            // Get other user's name
-                            // If I created the request, other user is the one who accepted it
-                            // If I accepted the request, other user is the one who created it
-                            const otherUserId = request.user_id === currentUserId
-                                ? request.accepted_by
-                                : request.user_id;
-                            
-                            if (!otherUserId) {
-                                Alert.alert('Error', 'Unable to determine other user. Please try again.');
-                                return;
-                            }
-                            
-                            // Get user name from users table
-                            const { supabase } = await import('../lib/supabase');
-                            const { data: otherUser } = await supabase
-                                .from('users')
-                                .select('name')
-                                .eq('id', otherUserId)
-                                .single();
+                                // Get other user's name
+                                // If I created the request, other user is the one who accepted it
+                                // If I accepted the request, other user is the one who created it
+                                const otherUserId = request.user_id === currentUserId
+                                    ? request.accepted_by
+                                    : request.user_id;
+                                
+                                if (!otherUserId) {
+                                    Alert.alert('Error', 'Unable to determine other user. Please try again.');
+                                    return;
+                                }
+                                
+                                // Get user name from users table
+                                const { supabase } = await import('../lib/supabase');
+                                const { data: otherUser } = await supabase
+                                    .from('users')
+                                    .select('name')
+                                    .eq('id', otherUserId)
+                                    .single();
 
-                            navigation.navigate('TravelBuddyChat', {
-                                travelRequestId: request.id,
-                                chatRoomId: chatRoom.id,
-                                otherUserName: otherUser?.name || request.user_name || 'Travel Buddy',
-                            });
-                        } catch (error) {
-                            console.error('Failed to open chat room:', error);
-                            Alert.alert('Error', 'Failed to open chat room. Please try again.');
-                        }
-                    }}
-                >
-                    <MessageCircle size={18} color="#FFF" />
-                    <Text style={styles.chatButtonText}>Open Chat Room</Text>
-                </TouchableOpacity>
+                                navigation.navigate('TravelBuddyChat', {
+                                    travelRequestId: request.id,
+                                    chatRoomId: chatRoom.id,
+                                    otherUserName: otherUser?.name || request.user_name || 'Travel Buddy',
+                                });
+                            } catch (error) {
+                                console.error('Failed to open chat room:', error);
+                                Alert.alert('Error', 'Failed to open chat room. Please try again.');
+                            }
+                        }}
+                    >
+                        <MessageCircle size={18} color="#FFF" />
+                        <Text style={styles.chatButtonText}>Open Chat</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.deleteButton, { backgroundColor: theme.danger }]}
+                        onPress={() => handleDeleteChatRoom(request)}
+                    >
+                        <Trash2 size={18} color="#FFF" />
+                        <Text style={styles.chatButtonText}>Delete</Text>
+                    </TouchableOpacity>
+                </View>
             )}
         </Card>
     );
@@ -426,14 +470,27 @@ const styles = StyleSheet.create({
     joinButton: {
         marginTop: SPACING.s,
     },
+    chatButtonsContainer: {
+        flexDirection: 'row',
+        marginTop: SPACING.s,
+        gap: SPACING.xs,
+    },
     chatButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         padding: SPACING.m,
         borderRadius: BORDER_RADIUS.m,
-        marginTop: SPACING.s,
         gap: SPACING.xs,
+    },
+    deleteButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: SPACING.m,
+        borderRadius: BORDER_RADIUS.m,
+        gap: SPACING.xs,
+        minWidth: 100,
     },
     chatButtonText: {
         color: '#FFFFFF',

@@ -272,3 +272,39 @@ export const subscribeToChatMessages = (
         supabase.removeChannel(channel);
     };
 };
+
+/**
+ * Delete a chat room and all its messages
+ */
+export const deleteChatRoom = async (chatRoomId: string): Promise<void> => {
+    try {
+        if (!isSupabaseConfigured()) {
+            throw new Error('Supabase not configured');
+        }
+
+        // First delete all messages in the chat room
+        const { error: messagesError } = await supabase
+            .from('chat_messages')
+            .delete()
+            .eq('chat_room_id', chatRoomId);
+
+        if (messagesError) {
+            throw messagesError;
+        }
+
+        // Then delete the chat room itself
+        const { error: roomError } = await supabase
+            .from('chat_rooms')
+            .delete()
+            .eq('id', chatRoomId);
+
+        if (roomError) {
+            throw roomError;
+        }
+
+        console.log('✅ Chat room and messages deleted successfully');
+    } catch (error) {
+        console.error('Error deleting chat room:', error);
+        throw error;
+    }
+};
